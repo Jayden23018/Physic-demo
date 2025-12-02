@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PendulumState, SimulationParams } from '../types';
 
-// Increased lengths (l1, l2) to 150 to make the visualization larger and more impressive
-const PARAMS: SimulationParams = {
-  m1: 10, m2: 10, l1: 150, l2: 150, g: 1
-};
+interface DoublePendulumProps {
+  params: SimulationParams;
+  resetToken: number;
+}
 
 // RK4 Integrator
 const derivative = (state: PendulumState, params: SimulationParams): PendulumState => {
@@ -34,8 +34,8 @@ const derivative = (state: PendulumState, params: SimulationParams): PendulumSta
   };
 };
 
-const integrate = (state: PendulumState, dt: number): PendulumState => {
-  const k1 = derivative(state, PARAMS);
+const integrate = (state: PendulumState, dt: number, params: SimulationParams): PendulumState => {
+  const k1 = derivative(state, params);
   
   const k2State = {
     theta1: state.theta1 + k1.theta1 * dt * 0.5,
@@ -43,7 +43,7 @@ const integrate = (state: PendulumState, dt: number): PendulumState => {
     omega1: state.omega1 + k1.omega1 * dt * 0.5,
     omega2: state.omega2 + k1.omega2 * dt * 0.5,
   };
-  const k2 = derivative(k2State, PARAMS);
+  const k2 = derivative(k2State, params);
 
   const k3State = {
     theta1: state.theta1 + k2.theta1 * dt * 0.5,
@@ -51,7 +51,7 @@ const integrate = (state: PendulumState, dt: number): PendulumState => {
     omega1: state.omega1 + k2.omega1 * dt * 0.5,
     omega2: state.omega2 + k2.omega2 * dt * 0.5,
   };
-  const k3 = derivative(k3State, PARAMS);
+  const k3 = derivative(k3State, params);
 
   const k4State = {
     theta1: state.theta1 + k3.theta1 * dt,
@@ -59,7 +59,7 @@ const integrate = (state: PendulumState, dt: number): PendulumState => {
     omega1: state.omega1 + k3.omega1 * dt,
     omega2: state.omega2 + k3.omega2 * dt,
   };
-  const k4 = derivative(k4State, PARAMS);
+  const k4 = derivative(k4State, params);
 
   return {
     theta1: state.theta1 + (dt / 6) * (k1.theta1 + 2 * k2.theta1 + 2 * k3.theta1 + k4.theta1),
@@ -69,7 +69,7 @@ const integrate = (state: PendulumState, dt: number): PendulumState => {
   };
 };
 
-const DoublePendulum: React.FC = () => {
+const DoublePendulum: React.FC<DoublePendulumProps> = ({ params, resetToken }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isRunning, setIsRunning] = useState(true);
   const [divergence, setDivergence] = useState(0);
@@ -146,17 +146,17 @@ const DoublePendulum: React.FC = () => {
   };
 
   const getCartesian = (s: PendulumState) => {
-    const x1 = PARAMS.l1 * Math.sin(s.theta1);
-    const y1 = PARAMS.l1 * Math.cos(s.theta1);
-    const x2 = x1 + PARAMS.l2 * Math.sin(s.theta2);
-    const y2 = y1 + PARAMS.l2 * Math.cos(s.theta2);
+    const x1 = params.l1 * Math.sin(s.theta1);
+    const y1 = params.l1 * Math.cos(s.theta1);
+    const x2 = x1 + params.l2 * Math.sin(s.theta2);
+    const y2 = y1 + params.l2 * Math.cos(s.theta2);
     
-    const vx1 = PARAMS.l1 * s.omega1 * Math.cos(s.theta1);
-    const vy1 = -PARAMS.l1 * s.omega1 * Math.sin(s.theta1);
+    const vx1 = params.l1 * s.omega1 * Math.cos(s.theta1);
+    const vy1 = -params.l1 * s.omega1 * Math.sin(s.theta1);
     
     // Velocity of bob 2 is vector sum
-    const vx2 = vx1 + PARAMS.l2 * s.omega2 * Math.cos(s.theta2);
-    const vy2 = vy1 - PARAMS.l2 * s.omega2 * Math.sin(s.theta2);
+    const vx2 = vx1 + params.l2 * s.omega2 * Math.cos(s.theta2);
+    const vy2 = vy1 - params.l2 * s.omega2 * Math.sin(s.theta2);
 
     return { x1, y1, x2, y2, vx1, vy1, vx2, vy2 };
   };
@@ -166,10 +166,18 @@ const DoublePendulum: React.FC = () => {
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
 
-    // Physics Update
-    const dt = 0.2; 
-    realState.current = integrate(realState.current, dt);
-    aiState.current = integrate(aiState.current, dt);
+    // Physics Update with adjustable speed & accuracy
+    const baseDt = params.dt ?? 0.2;
+    const speed = params.speed ?? 1;
+    const accuracy = params.accuracy ?? 1;
+
+    const effectiveDt = baseDt * speed;
+    const substeps = Math.max(1, Math.round(accuracy));
+
+    for (let i = 0; i < substeps; i++) {
+      realState.current = integrate(realState.current, effectiveDt / substeps, params);
+      aiState.current = integrate(aiState.current, effectiveDt / substeps, params);
+    }
 
     // Calc Divergence (Euclidean distance in phase space approximation)
     const posReal = getCartesian(realState.current);
@@ -249,7 +257,12 @@ const DoublePendulum: React.FC = () => {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [isRunning]);
+  }, [isRunning, params]);
+
+  useEffect(() => {
+    // Whenever resetToken changes (from App), restart initial conditions
+    reset();
+  }, [resetToken]);
 
   const reset = () => {
     realState.current = { theta1: Math.PI / 2, theta2: Math.PI / 2, omega1: 0, omega2: 0 };
