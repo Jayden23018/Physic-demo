@@ -114,7 +114,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({ params, onChange }) => {
         />
         <Slider
           label="Model Accuracy"
-          min={0.5}
+          min={0.1}
           max={3}
           step={0.5}
           value={params.accuracy ?? 1}

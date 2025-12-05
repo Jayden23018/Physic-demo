@@ -1,7 +1,7 @@
 import React from 'react';
 import Sidebar from './Components/Sidebar';
 import DoublePendulum from './Components/DoublePandulum';
-import ControlPanel from './Components/ControlPanel';
+import RightPanel from './Components/RightPanel';
 import { useState, useCallback } from 'react';
 import { SimulationParams } from './types';
 
@@ -33,8 +33,8 @@ const App: React.FC = () => {
         <DoublePendulum params={params} resetToken={resetToken} />
       </main>
 
-      {/* Control Sidebar */}
-      <ControlPanel params={params} onChange={handleParamsChange} />
+      {/* Right panel: AI chat / system parameters */}
+      <RightPanel params={params} onChange={handleParamsChange} />
     </div>
   );
 };
