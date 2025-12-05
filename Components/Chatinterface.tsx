@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { sendMessageToGemini } from '../services/geminiService';
 import { ChatMessage } from '../types';
 
@@ -41,18 +44,27 @@ const ChatInterface: React.FC = () => {
     <div className="w-80 h-full bg-sci-panel border-l border-gray-800 flex flex-col">
       <div className="p-4 border-b border-gray-800 bg-[#0f0f11]">
         <h3 className="font-mono text-sm font-bold text-sci-accent tracking-widest">AI RESEARCH ASSISTANT</h3>
-        <div className="text-xs text-gray-500 mt-1">Model: Gemini 2.5 Flash</div>
+        <div className="text-xs text-gray-500 mt-1">Model: qwen3-max</div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg, idx) => (
           <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            <div className={`max-w-[90%] rounded-lg p-3 text-sm ${
+            <div className={`max-w-[90%] rounded-lg p-3 text-sm prose prose-invert prose-pre:bg-black/70 prose-pre:border prose-pre:border-gray-700 prose-code:text-xs ${
               msg.role === 'user' 
                 ? 'bg-sci-accent/20 text-blue-100 border border-sci-accent/30' 
                 : 'bg-gray-800 text-gray-300 border border-gray-700'
             }`}>
-              {msg.content}
+              {msg.role === 'model' ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {msg.content}
+                </ReactMarkdown>
+              ) : (
+                msg.content
+              )}
             </div>
             <span className="text-[10px] text-gray-600 mt-1 font-mono uppercase">{msg.role}</span>
           </div>

@@ -21,6 +21,9 @@ export interface SimulationParams {
   l1: number;
   l2: number;
   g: number;
+  dt?: number; // simulation time step
+  speed?: number; // visual playback speed multiplier
+  accuracy?: number; // integration substeps / precision control
 }
 
 export interface SimulationConfig {
